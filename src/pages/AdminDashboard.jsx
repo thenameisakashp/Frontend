@@ -14,7 +14,7 @@ export default function AdminDashboard() {
     items, activeItems, archivedItems,
     claims, pendingClaims, resolvedClaims,
     archiveItem, reopenItem, deleteItem,
-    resolvePost, undoResolution,
+    resolvePost, undoResolution, rejectClaim,
   } = useData();
 
   const {
@@ -130,6 +130,17 @@ export default function AdminDashboard() {
   };
 
   const handleDeletePost = async (postId, title) => {
+    // Row 3 of spec: Edit / delete (not while a claim is pending)
+    const hasPendingClaim = claims.some(
+      (c) =>
+        (String(c.post_id) === String(postId) || String(c.target_id) === String(postId)) &&
+        (c.decision === 'pending' || c.status === 'pending' || c.status === 'claim_pending')
+    );
+    if (hasPendingClaim) {
+      showNotice(`Cannot delete "${title}" while an ownership claim is pending resolution.`, 'error');
+      return;
+    }
+
     if (window.confirm(`Delete post "${title}"?`)) {
       try {
         await deleteItem(postId);
@@ -141,10 +152,21 @@ export default function AdminDashboard() {
   };
 
   const handleResolveClaim = async (postId, claimId, claimant) => {
-    const note = window.prompt(`Confirm approval for ${claimant}'s claim. Enter resolution note:`, 'Approved by admin desk.');
+    const note = window.prompt(`Confirm approval for ${claimant}'s claim. Enter resolution verification note:`, 'Proof verified in-person at campus desk.');
     if (note !== null) {
-      await resolvePost(postId, claimId, note);
-      showNotice(`Claim #${claimId} approved for ${claimant}.`);
+      try {
+        await resolvePost(postId, claimId, note.trim() || 'Proof verified in-person at campus desk.');
+        showNotice(`Claim #${claimId} approved & post resolved for ${claimant}.`);
+      } catch (err) {
+        showNotice(err?.message || 'Failed to resolve claim on backend.', 'error');
+      }
+    }
+  };
+
+  const handleRejectClaim = (claimId, claimant) => {
+    if (window.confirm(`Reject claim #${claimId} submitted by ${claimant}?`)) {
+      rejectClaim(claimId);
+      showNotice(`Claim #${claimId} rejected.`);
     }
   };
 
@@ -431,18 +453,18 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* TAB 2: PENDING CLAIMS */}
+      {/* TAB 2: PENDING CLAIMS - Matching Image 2 "Manage Claims" */}
       {activeTab === 'pending' && (
         <div className="admin-table-card" style={{ background: '#ffffff', borderRadius: 10, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
           <table className="admin-data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 12, color: '#64748b' }}>
-                <th style={{ padding: '12px 16px' }}>Claim ID</th>
+                <th style={{ padding: '12px 16px' }}>ID</th>
                 <th style={{ padding: '12px 16px' }}>Item Title</th>
-                <th style={{ padding: '12px 16px' }}>Claimant Details</th>
-                <th style={{ padding: '12px 16px' }}>Proof Message</th>
-                <th style={{ padding: '12px 16px' }}>Date</th>
-                <th style={{ padding: '12px 16px' }}>Action</th>
+                <th style={{ padding: '12px 16px' }}>Claimant</th>
+                <th style={{ padding: '12px 16px' }}>Proof Snippet</th>
+                <th style={{ padding: '12px 16px' }}>Status</th>
+                <th style={{ padding: '12px 16px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -462,13 +484,35 @@ export default function AdminDashboard() {
                   <td style={{ padding: '12px 16px', fontSize: 12, color: '#334155', maxWidth: 280 }}>
                     "{c.message || c.proof_snippet}"
                   </td>
-                  <td style={{ padding: '12px 16px', fontSize: 12, color: '#64748b' }}>
-                    {c.created_at ? new Date(c.created_at).toLocaleDateString() : 'Recent'}
+                  <td style={{ padding: '12px 16px' }}>
+                    <span style={{ background: '#fef9c3', color: '#ca8a04', padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700 }}>
+                      Pending
+                    </span>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
-                    <Link to={`/items/${c.post_id}`} className="btn outline-btn mini-btn">
-                      View
-                    </Link>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <Link to={`/items/${c.post_id}`} className="btn outline-btn mini-btn">
+                        View
+                      </Link>
+                      <button
+                        type="button"
+                        className="btn approve-btn mini-btn"
+                        onClick={() => handleResolveClaim(c.post_id, c.claim_id, c.claimant)}
+                        title="Approve claim and resolve post"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <Check size={12} /> Approve
+                      </button>
+                      <button
+                        type="button"
+                        className="btn outline-btn mini-btn"
+                        style={{ color: '#ef4444', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                        onClick={() => handleRejectClaim(c.claim_id, c.claimant)}
+                        title="Reject claim"
+                      >
+                        <X size={12} /> Reject
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

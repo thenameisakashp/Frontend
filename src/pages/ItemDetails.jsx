@@ -403,9 +403,14 @@ export default function ItemDetails() {
       </div>
 
       {actionSuccessMsg && (
-        <div className="alert-success-banner" style={{ margin: '12px 0' }}>
-          <CheckCircle2 size={16} />
-          <span>{actionSuccessMsg}</span>
+        <div className="alert-success-banner" style={{ margin: '12px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <CheckCircle2 size={16} />
+            <span>{actionSuccessMsg}</span>
+          </div>
+          <Link to="/claims" className="btn outline-btn mini-btn" style={{ textDecoration: 'none', background: '#ffffff' }}>
+            View in My Claims
+          </Link>
         </div>
       )}
 
@@ -860,14 +865,20 @@ export default function ItemDetails() {
                 </div>
               )}
 
-              <button
-                type="submit"
-                className="btn primary-btn submit-claim-btn"
-                disabled={submitting}
-              >
-                <Check size={15} />
-                <span>{submitting ? 'Submitting Claim...' : 'Submit Claim'}</span>
-              </button>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '12px', flexWrap: 'wrap' }}>
+                <button
+                  type="submit"
+                  className="btn primary-btn submit-claim-btn"
+                  disabled={submitting}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Send size={15} />
+                  <span>{submitting ? 'Submitting Claim...' : 'Submit Claim'}</span>
+                </button>
+                <Link to="/" className="btn outline-btn" style={{ padding: '8px 14px', fontSize: '13px', textDecoration: 'none' }}>
+                  Continue Browsing
+                </Link>
+              </div>
             </form>
           </>
         )}
